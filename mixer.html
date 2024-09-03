@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP3 Player with Two Columns</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        #columns {
+            display: flex;
+            justify-content: space-between;
+        }
+        .column {
+            width: 48%;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            min-height: 200px;
+        }
+        #dropZone {
+            width: 100%;
+            height: 50px;
+            border: 2px dashed #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        .audio-control {
+            height: 25px;
+            flex-grow: 1;
+        }
+        .audio-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            cursor: move;
+            height: 30px;
+        }
+        .delete-button {
+            margin-left: 10px;
+            color: red;
+            cursor: pointer;
+        }
+        .volume-slider {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+        }
+        #fader {
+            width: 100%;
+            margin-top: 20px;
+        }
+        .transfer-buttons, .move-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .select-checkbox {
+            margin-right: 10px;
+        }
+        .autoplay-checkbox {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="dropZone">Drag and drop MP3 files here or click to browse</div>
+    <input type="file" id="fileInput" multiple accept=".mp3,audio/mpeg">
+    
+    <div class="transfer-buttons">
+        <button id="moveToB">Move to Column B</button>
+        <button id="moveToA">Move to Column A</button>
+    </div>
+
+    <div id="columns">
+        <div class="column" id="columnA">
+            <h3>Column A</h3>
+            <div class="move-buttons">
+                <button id="moveUpA">Move Up</button>
+                <button id="moveDownA">Move Down</button>
+                <button id="moveTopA">Move to Top</button>
+                <button id="moveBottomA">Move to Bottom</button>
+            </div>
+            <label for="autoplayA">Autoplay Next:</label>
+            <input type="checkbox" id="autoplayA" class="autoplay-checkbox">
+            <div id="audioListA"></div>
+            <div class="slider-labels">
+                <span>0</span>
+                <span>5</span>
+                <span>11</span>
+            </div>
+            <input type="range" min="0" max="11" value="5" class="volume-slider" id="volumeA">
+            <label for="volumeA">Volume A</label>
+        </div>
+        <div class="column" id="columnB">
+            <h3>Column B</h3>
+            <div class="move-buttons">
+                <button id="moveUpB">Move Up</button>
+                <button id="moveDownB">Move Down</button>
+                <button id="moveTopB">Move to Top</button>
+                <button id="moveBottomB">Move to Bottom</button>
+            </div>
+            <label for="autoplayB">Autoplay Next:</label>
+            <input type="checkbox" id="autoplayB" class="autoplay-checkbox">
+            <div id="audioListB"></div>
+            <div class="slider-labels">
+                <span>0</span>
+                <span>5</span>
+                <span>11</span>
+            </div>
+            <input type="range" min="0" max="11" value="5" class="volume-slider" id="volumeB">
+            <label for="volumeB">Volume B</label>
+        </div>
+    </div>
+    
+    <div class="slider-labels">
+        <span>0%</span>
+        <span>50%</span>
+        <span>100%</span>
+    </div>
+    <input type="range" min="0" max="100" value="50" id="fader" title="Fader between A and B">
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropZone = document.getElementById('dropZone');
+            const audioListA = document.getElementById('audioListA');
+            const audioListB = document.getElementById('audioListB');
+            const fileInput = document.getElementById('fileInput');
+            const volumeA = document.getElementById('volumeA');
+            const volumeB = document.getElementById('volumeB');
+            const fader = document.getElementById('fader');
+            const moveToBButton = document.getElementById('moveToB');
+            const moveToAButton = document.getElementById('moveToA');
+            const autoplayA = document.getElementById('autoplayA');
+            const autoplayB = document.getElementById('autoplayB');
+            const moveUpAButton = document.getElementById('moveUpA');
+            const moveDownAButton = document.getElementById('moveDownA');
+            const moveTopAButton = document.getElementById('moveTopA');
+            const moveBottomAButton = document.getElementById('moveBottomA');
+            const moveUpBButton = document.getElementById('moveUpB');
+            const moveDownBButton = document.getElementById('moveDownB');
+            const moveTopBButton = document.getElementById('moveTopB');
+            const moveBottomBButton = document.getElementById('moveBottomB');
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#333';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = '#ccc';
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#ccc';
+                handleFiles(e.dataTransfer.files);
+            });
+
+            dropZone.addEventListener('click', () => {
+                fileInput.click(); // Trigger the file input dialog
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(fileInput.files);
+            });
+
+            function handleFiles(files) {
+                [...files].forEach(file => {
+                    if (file.type === 'audio/mp3' || file.type === 'audio/mpeg') {
+                        const url = URL.createObjectURL(file);
+                        const audioElement = createAudioElement(file.name, url);
+                        audioListA.appendChild(audioElement); // Default to adding to Column A
+                    }
+                });
+            }
+
+            function createAudioElement(filename, src) {
+                const container = document.createElement('div');
+                container.className = 'audio-item';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'select-checkbox';
+                
+                const label = document.createElement('div');
+                label.textContent = filename;
+
+                const audio = document.createElement('audio');
+                audio.src = src;
+                audio.controls = true;
+                audio.className = 'audio-control';
+
+                const deleteButton = document.createElement('span');
+                deleteButton.textContent = 'Delete';
+                deleteButton.className = 'delete-button';
+                deleteButton.addEventListener('click', () => {
+                    container.remove();
+                });
+
+                audio.addEventListener('ended', () => {
+                    handleAutoplay(audio);
+                });
+
+                container.appendChild(checkbox);
+                container.appendChild(label);
+                container.appendChild(audio);
+                container.appendChild(deleteButton);
+
+                return container;
+            }
+
+            function handleAutoplay(currentAudio) {
+                const column = currentAudio.closest('.column');
+                const autoplayCheckbox = column.querySelector('.autoplay-checkbox');
+                
+                if (autoplayCheckbox.checked) {
+                    const nextItem = currentAudio.closest('.audio-item').nextElementSibling;
+                    if (nextItem && nextItem.querySelector('audio')) {
+                        nextItem.querySelector('audio').play();
+                    }
+                }
+            }
+
+            function moveSelectedItems(sourceList, destinationList) {
+                const itemsToMove = [...sourceList.querySelectorAll('.select-checkbox:checked')]
+                    .map(checkbox => checkbox.closest('.audio-item'));
+
+                itemsToMove.forEach(item => {
+                    destinationList.appendChild(item);
+                });
+            }
+
+            moveToBButton.addEventListener('click', () => {
+                moveSelectedItems(audioListA, audioListB);
+            });
+
+            moveToAButton.addEventListener('click', () => {
+                moveSelectedItems(audioListB, audioListA);
+            });
+
+            function moveItemUp(list) {
+                const selectedCheckbox = list.querySelector('.select-checkbox:checked');
+                if (selectedCheckbox) {
+                    const item = selectedCheckbox.closest('.audio-item');
+                    const prevItem = item.previousElementSibling;
+                    if (prevItem) {
+                        list.insertBefore(item, prevItem);
+                    }
+                }
+            }
+
+            function moveItemDown(list) {
+                const selectedCheckbox = list.querySelector('.select-checkbox:checked');
+                if (selectedCheckbox) {
+                    const item = selectedCheckbox.closest('.audio-item');
+                    const nextItem = item.nextElementSibling;
+                    if (nextItem) {
+                        list.insertBefore(nextItem, item);
+                    }
+                }
+            }
+
+            function moveItemToTop(list) {
+                const selectedCheckbox = list.querySelector('.select-checkbox:checked');
+                if (selectedCheckbox) {
+                    const item = selectedCheckbox.closest('.audio-item');
+                    list.insertBefore(item, list.firstChild);
+                }
+            }
+
+            function moveItemToBottom(list) {
+                const selectedCheckbox = list.querySelector('.select-checkbox:checked');
+                if (selectedCheckbox) {
+                    const item = selectedCheckbox.closest('.audio-item');
+                    list.appendChild(item);
+                }
+            }
+
+            moveUpAButton.addEventListener('click', () => {
+                moveItemUp(audioListA);
+            });
+
+            moveDownAButton.addEventListener('click', () => {
+                moveItemDown(audioListA);
+            });
+
+            moveTopAButton.addEventListener('click', () => {
+                moveItemToTop(audioListA);
+            });
+
+            moveBottomAButton.addEventListener('click', () => {
+                moveItemToBottom(audioListA);
+            });
+
+            moveUpBButton.addEventListener('click', () => {
+                moveItemUp(audioListB);
+            });
+
+            moveDownBButton.addEventListener('click', () => {
+                moveItemDown(audioListB);
+            });
+
+            moveTopBButton.addEventListener('click', () => {
+                moveItemToTop(audioListB);
+            });
+
+            moveBottomBButton.addEventListener('click', () => {
+                moveItemToBottom(audioListB);
+            });
+
+            // Volume and Fader Controls
+            volumeA.addEventListener('input', () => {
+                const volume = volumeA.value / 11;
+                setColumnVolume(audioListA, volume);
+            });
+
+            volumeB.addEventListener('input', () => {
+                const volume = volumeB.value / 11;
+                setColumnVolume(audioListB, volume);
+            });
+
+            fader.addEventListener('input', () => {
+                const value = fader.value;
+                const volumeAValue = (100 - value) / 100;
+                const volumeBValue = value / 100;
+                setColumnVolume(audioListA, volumeAValue);
+                setColumnVolume(audioListB, volumeBValue);
+            });
+
+            function setColumnVolume(column, volume) {
+                const audios = column.querySelectorAll('audio');
+                audios.forEach(audio => {
+                    audio.volume = volume;
+                });
+            }
+        });
+    </script>
+</body>
+</html>
